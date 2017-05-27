@@ -75,11 +75,10 @@ class automata(sock.socket):
 
                 print('Closing connection with {0}'.format(addr[0]))
                 conn.close()
-        except OSError as ex:
-            if ex.errno == 98:
-                self.beacon()
-        except KeyboardInterrupt:
+        except:
+            print('Closing server socket. Sleeping 10 seconds...')
             self.close()
+            sleep(10)
             return 1
 
     def ping(self):
