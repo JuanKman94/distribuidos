@@ -1,10 +1,9 @@
-# Proyecto de sistemas distribuidos
+# Distributed systems' class project
 
-El objetivo del proyecto es crear un sistema _middleware_ que sea capaz de
-funcionar apropiadamente a través de distintas maquinas.
+The objective of the project is to create a _middleware_ distributed system
+capable of communicating itself through different machines.
 
-El sistema debe ser autosuficiente y autocorregible de errores no críticos,
-lo que incluye, pero no se limita, a:
-1. Si uno de los nodos se desconecta, debe seguir funcionando
-2. Si el nodo maestro se cae, uno de los nodos servidores debe asumir el rol
-3. Si hay dos nodos maestros a la vez, deben resolver el conflicto
+The system MUST:
+1. be able to continue working after any of the nodes is disconnected
+2. always have a working master node
+3. if there's more than one master node at once, the system must kill on of'em
