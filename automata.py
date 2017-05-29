@@ -38,7 +38,7 @@ class automata(sock.socket):
             if self.master: break
 
             hosts = [ ip for ip in cidr.iter_hosts() ]
-            hosts = hosts[210:220]
+            #hosts = hosts[210:220] # testing
 
             for ip in hosts:
                 print('connecting {ip}... '.format(ip = ip), end='')
@@ -78,7 +78,7 @@ class automata(sock.socket):
         except:
             print('Closing server socket. Sleeping 10 seconds...')
             self.close()
-            sleep(10)
+            time.sleep(10)
             return 1
 
     def ping(self):
