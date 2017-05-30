@@ -50,7 +50,7 @@ class automata(sock.socket):
                 except ConnectionRefusedError:
                     print('refused')
                 except OSError as ex:
-                    print('no route [{0}]'.format(ex))
+                    print('no route {0}'.format(ex))
                 else:
                     print('error')
 
