@@ -7,6 +7,7 @@ import psutil
 import netaddr
 import platform
 import netifaces
+import threading
 import socket as sock
 
 MAX_FAILED_ATTEMPTS = 10
@@ -64,22 +65,26 @@ class automata(sock.socket):
 
             while True:
                 (conn, addr) = self.accept() # blocking call
-
                 print('Connected with {0}'.format(addr[0]))
+                threading.Thread( target = self.handle_conn, args = (conn, addr)).start()
+        except Exception as ex:
+            print('Closing server socket({0}). Sleeping 10 seconds...'.format(ex))
+            self.close()
+            time.sleep(10)
+            return 1
 
+    def handle_conn(self, conn, addr):
+        try:
+            while True:
                 data = str(conn.recv(1024), encoding='utf-8')
                 while data:
                     print(data)
                     conn.sendall('OK\r\n'.encode())
                     data = str(conn.recv(1024), encoding='utf-8')
-
-                print('Closing connection with {0}'.format(addr[0]))
-                conn.close()
         except:
-            print('Closing server socket. Sleeping 10 seconds...')
-            self.close()
-            time.sleep(10)
-            return 1
+            if conn: conn.close()
+
+        print('Closing connection with {0}'.format(addr[0]))
 
     def ping(self):
         '''Send info to master'''
@@ -118,7 +123,12 @@ class automata(sock.socket):
             print('Error getting IPv4 address.')
             sys.exit(1)
 
-        self.up()
+        try:
+            self.up()
+        except:
+            return -1
+
+        return 1
 
     def get_ifaces(self):
         '''Return dictionary with each interface as a key and another
