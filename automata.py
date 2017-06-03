@@ -3,6 +3,7 @@
 import sys
 import json
 import time
+import random
 import psutil
 import netaddr
 import platform
@@ -11,6 +12,7 @@ import threading
 import socket as sock
 
 MAX_FAILED_ATTEMPTS = 10
+RANDOM_ID = random.randint(1, 100)
 
 class automata(sock.socket):
     def __init__(self, address = '', port = 9999, max_conn = 5):
@@ -20,6 +22,7 @@ class automata(sock.socket):
         self.role = 'server' # [ server | master ]
         self.master = None # ip address for current master
         self.ifaces = None
+        self.capacity = RANDOM_ID
 
         try:
             # AF_INET for IPv4
@@ -32,6 +35,14 @@ class automata(sock.socket):
         '''Send beacon to entire network to look for other automatas'''
         ifaces = self.get_ifaces()
         self.master = None
+
+        try:
+            self.connect( ('', self.port) )
+            self.master = ''
+        except Exception as ex:
+            print(ex)
+
+        return self.master
 
         for iface in ifaces:
             cidr = netaddr.IPNetwork(ifaces[iface]['addr'], ifaces[iface]['netmask'])
@@ -71,7 +82,7 @@ class automata(sock.socket):
             print('Closing server socket({0}). Sleeping 10 seconds...'.format(ex))
             self.close()
             time.sleep(10)
-            return 1
+            return -1
 
     def handle_conn(self, conn, addr):
         try:
@@ -86,10 +97,13 @@ class automata(sock.socket):
 
         print('Closing connection with {0}'.format(addr[0]))
 
-    def ping(self):
+    def ping(self, address = None):
         '''Send info to master'''
         count, failed_attempts = 0, 0
         failure, no_master_found = False, False
+
+        #if address != None and self.master != '':
+        #    self.connect( ('', self.port) )
 
         while True:
             try:
@@ -110,7 +124,7 @@ class automata(sock.socket):
                 no_master_found = True
                 break
 
-        return None
+        return no_master_found
 
     def is_master(self):
         return self.role == 'master'
@@ -119,11 +133,12 @@ class automata(sock.socket):
         self.role = 'master'
         self.address = self.get_ipv4()
 
-        if not self.address:
-            print('Error getting IPv4 address.')
-            sys.exit(1)
+        #if not self.address:
+        #    print('Error getting IPv4 address.')
+        #    sys.exit(1)
 
         try:
+            self.address = ''
             self.up()
         except:
             return -1
@@ -168,7 +183,7 @@ class automata(sock.socket):
             except netaddr.AddrConversionError:
                 return None
 
-        return None
+        return ''
 
 def get_cpu_data():
     mem, arch = psutil.virtual_memory()[0], platform.machine()
@@ -183,5 +198,6 @@ def get_cpu_data():
             'mem': str(mem) + 'GB',
             #'arch': arch,
             'os': os,
-            'proc': proc
+            'proc': proc,
+            'capacity': RANDOM_ID
     }
