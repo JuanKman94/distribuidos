@@ -23,6 +23,7 @@ class automata(sock.socket):
         self.master = None # ip address for current master
         self.ifaces = None
         self.capacity = RANDOM_ID
+        self.clients = list()
 
         try:
             # AF_INET for IPv4
@@ -50,7 +51,6 @@ class automata(sock.socket):
             if self.master: break
 
             hosts = [ ip for ip in cidr.iter_hosts() ]
-            #hosts = hosts[210:220] # testing
 
             for ip in hosts:
                 print('connecting {ip}... '.format(ip = ip), end='')
@@ -85,16 +85,31 @@ class automata(sock.socket):
             return -1
 
     def handle_conn(self, conn, addr):
+        self.clients.append(addr[0])
+
         try:
             while True:
+                if not self.is_master(): break
+
                 data = str(conn.recv(1024), encoding='utf-8')
-                while data:
-                    print(data)
-                    conn.sendall('OK\r\n'.encode())
+                while data and self.is_master():
+                    try:
+                        data = json.loads(data)
+                    except Exception as ex:
+                        'nada'
+
+                    print("Total clients:", len(self.clients))
+
+                    if data['capacity'] > self.capacity:
+                        conn.sendall('WIN\r\n'.encode())
+                    else:
+                        conn.sendall('OK\r\n'.encode())
+
                     data = str(conn.recv(1024), encoding='utf-8')
         except:
             if conn: conn.close()
 
+        self.clients.remove(addr[0])
         print('Closing connection with {0}'.format(addr[0]))
 
     def ping(self, address = None):
@@ -193,11 +208,11 @@ def get_cpu_data():
     mem /= 1024
     mem /= 1024
 
-    return {
+    return json.dumps({
             #'hdd': '32GB',
             'mem': str(mem) + 'GB',
             #'arch': arch,
             'os': os,
             'proc': proc,
             'capacity': RANDOM_ID
-    }
+    })
