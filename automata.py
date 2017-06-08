@@ -30,7 +30,7 @@ class automata(sock.socket):
 
     def beacon(self):
         '''Send beacon to entire network to look for other automatas'''
-        ifaces = self.get_ifaces()
+        ifaces = get_ifaces()
         self.master = None
 
         for iface in ifaces:
@@ -39,7 +39,6 @@ class automata(sock.socket):
             if self.master: break
 
             hosts = [ ip for ip in cidr.iter_hosts() ]
-            #hosts = hosts[210:220] # testing
 
             for ip in hosts:
                 print('connecting {ip}... '.format(ip = ip), end='')
@@ -130,36 +129,8 @@ class automata(sock.socket):
 
         return 1
 
-    def get_ifaces(self):
-        '''Return dictionary with each interface as a key and another
-        dictionary with netmask and address as value'''
-        if self.ifaces: return self.ifaces
-
-        ifaces = netifaces.interfaces()
-        info = {}
-
-        for i in range( len(ifaces) ):
-            iface = ifaces[i]
-            addresses = netifaces.ifaddresses(iface)
-            info[ iface ] = {}
-
-            try:
-                inet = addresses[ sock.AF_INET ][0]
-
-                # skip loopback -- just raise error, fuck it
-                if inet['addr'] == '127.0.0.1': raise KeyError
-
-                info[iface]['addr'] = inet['addr']
-                info[iface]['netmask'] = inet['netmask']
-            except KeyError as err:
-                del info[ iface ]
-                continue
-
-        self.ifaces = info
-        return info
-
     def get_ipv4(self):
-        ifaces = self.get_ifaces()
+        ifaces = get_ifaces()
         for iface in ifaces:
             cidr = netaddr.IPNetwork(ifaces[iface]['addr'], ifaces[iface]['netmask'])
             try:
@@ -185,3 +156,29 @@ def get_cpu_data():
             'os': os,
             'proc': proc
     }
+
+def get_ifaces():
+    '''Return dictionary with each interface as a key and another
+    dictionary with netmask and address as value'''
+    ifaces = netifaces.interfaces()
+    info = {}
+
+    for i in range( len(ifaces) ):
+        iface = ifaces[i]
+        addresses = netifaces.ifaddresses(iface)
+        info[ iface ] = {}
+
+        try:
+            inet = addresses[ socket.AF_INET ][0]
+
+            # skip loopback -- just raise error, fuck it
+            if inet['addr'] == '127.0.0.1': raise KeyError
+
+            info[iface]['addr'] = inet['addr']
+            info[iface]['netmask'] = inet['netmask']
+            info[iface]['broadcast'] = inet['broadcast']
+        except KeyError as err:
+            del info[ iface ]
+            continue
+
+    return info
