@@ -9,9 +9,9 @@ import netifaces
 PORT = 3000
 MAX_LEN = 256
 
-def listen_handler(sock, addr):
+def listen_handler(sock):
     print('Listening on {0}:{1}...'.format(addr[0], addr[1]))
-    sock.bind( addr )
+    sock.bind( ('0.0.0.0', PORT) )
     try:
         while True:
             conn = sock.recvfrom(MAX_LEN)
@@ -53,7 +53,6 @@ for key in ifaces:
 
 iface = ifaces[k]
 addr = (iface['broadcast'], PORT)
-my_addr = (iface['addr'], PORT)
 
 ### Broadcaster
 broadcaster = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
@@ -70,7 +69,7 @@ listener = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
 
 t_listen = threading.Thread(
         target = listen_handler,
-        args = (listener, my_addr)
+        args = (listener,)
 )
 t_listen.start()
 
