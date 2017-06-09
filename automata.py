@@ -169,7 +169,7 @@ def get_ifaces():
         info[ iface ] = {}
 
         try:
-            inet = addresses[ socket.AF_INET ][0]
+            inet = addresses[ sock.AF_INET ][0]
 
             # skip loopback -- just raise error, fuck it
             if inet['addr'] == '127.0.0.1': raise KeyError
