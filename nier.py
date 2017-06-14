@@ -1,30 +1,49 @@
 #!/usr/bin/env python3
 
-import sys
 import time
+import socket
 import automata
+import threading
 
-try:
-    sys.index('server')
-    nier = automata(port = 9000)
-    nier.become_master()
-except:
-    'nada'
+PORT = 3000
+
+def print_pals(auto):
+    while True:
+        print(auto.pals)
+        time.sleep(3)
+
+ifaces = automata.get_ifaces()
+k = 'eth0' # just to default it
+for key in ifaces:
+    if ifaces[key].get('broadcast', None): k = key
+iface = ifaces[k]
+bc_addr = (iface['broadcast'], PORT)
 
 while True:
-    try:
-        nier = automata.automata(port = 9000)
-        master_ip = nier.beacon()
+    ### Broadcaster
+    nier = automata.automata(address = iface['addr'], port = PORT)
+    nier.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 
-        if not master_ip:
-            print('No master found. Becoming one...')
-            nier.become_master()
-        else:
-            print('master found {0}. pinging...'.format(master_ip))
-            resp = nier.ping()
+    t_broadcast = threading.Thread(
+            target = nier.beacon,
+            name = 'broadcaster',
+            args = (bc_addr,)
+    )
+    t_broadcast.start()
 
-            if not resp: nier.close()
+    ### Listener
+    listener = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
 
-    except:
-        print('Some error happened. Whatever, sleeping 5...')
-        time.sleep(5)
+    t_listen = threading.Thread(target = nier.up, name = 'listener')
+    t_listen.start()
+
+    ### Status
+    t_status = threading.Thread( target = print_pals, args = (nier,) )
+    t_status.start()
+
+    t_broadcast.join()
+    t_listen.join()
+    t_status.join()
+    nier.close()
+
+print("\n\nexiting...")
