@@ -20,7 +20,7 @@ class automata(sock.socket):
         self.address = address
         self.port = port
         self.max_conn = max_conn
-        self.pals = dict()
+        self.pals = dict() # other automatas found
 
         try:
             # AF_INET for IPv4
@@ -58,19 +58,19 @@ class automata(sock.socket):
             print('error [{t}]!'.format(t = ting.current_thread().name), ex)
 
 def get_cpu_data():
-    mem, arch = psutil.virtual_memory()[0], platform.machine()
+    mem, arch = psutil.virtual_memory(), platform.machine()
     os, proc = platform.system(), platform.processor()
 
-    mem /= 1024
-    mem /= 1024
-    mem /= 1024
-
     return {
-        #'hdd': '32GB',
-        'mem': str(mem) + 'GB',
-        #'arch': arch,
+        'mem': {
+            'total': mem.total,
+            'available': mem.available,
+            'active': mem.active,
+            'percent': mem.percent
+        },
         'os': os,
-        'proc': proc
+        'proc': proc,
+        'ts': time.gmtime()
     }
 
 def get_ifaces():
