@@ -10,6 +10,7 @@ import netifaces
 import threading as ting
 import socket as sock
 
+PAIR_MSG = 'PAIRING'
 TCP_PORT = 3000
 UDP_PORT = 3333
 MAX_CON = 5
@@ -35,20 +36,20 @@ class automata(sock.socket):
         using UDP: 255.255.255.255 on port UDP_PORT
         '''
         # sleep to avoid weird race condition that returns errno 22
-        time.sleep(3)
+        time.sleep(INTERVAL)
         addr = ( '255.255.255.255', UDP_PORT)
-        print('Broadcasting CPU', addr)
+        print('INFO Broadcasting on UDP', addr)
         while True:
             try:
                 #data = json.dumps(get_cpu_data()).encode()
-                self.sendto(b'Looking for peers', addr)
+                self.sendto(PAIR_MSG.encode(), addr)
                 time.sleep(INTERVAL)
             except Exception as ex:
-                print('[ERROR] {t}:'.format(t = ting.current_thread().name), ex)
+                print('ERROR {t}:'.format(t = ting.current_thread().name), ex)
 
     def listen(self):
         '''Listen to entire network for others automatas using UDP'''
-        print('Listening on port', UDP_PORT)
+        print('INFO Listening on UDP {0}:{1}'.format(self.address, UDP_PORT))
         try:
             self.bind( ('', UDP_PORT) )
         except sock.error as msg:
@@ -56,58 +57,66 @@ class automata(sock.socket):
             sys.exit(1)
 
         while True:
-            conn = self.recvfrom(MAX_MSG_LEN) # blocking call
-            ip = conn[1][0]
             try:
-                data = json.loads(str(conn[0], encoding='utf-8'))
-            except Exception as ex:
-                data = { "error": str(ex) }
+                conn = self.recvfrom(MAX_MSG_LEN) # blocking call
+                ip = conn[1][0]
+                msg = str(conn[0], encoding='utf-8')
 
-            if self.address != ip:
-                self.connect_peer(ip)
+                if msg != PAIR_MSG:
+                    try:
+                        data = json.loads(msg)
+                    except json.decoder.JSONDecoderError:
+                        print('ERROR Bad format')
+                        continue
 
-    def handle_peer(self, conn):
-        conn.send('Hola!')
-        while True:
-            data = conn.recv(1024)
-            if not data:
-                break
-
-            conn.sendall('OK!')
-
-        conn.close()
+                if self.address != ip:
+                    self.connect_peer(ip)
+            except sock.timeout:
+                ''
 
     def listen_peer(self):
-        print('Listening on TCP')
+        print('INFO Listening on TCP {0}:{1}'.format(self.address, TCP_PORT))
         tcp = sock.socket(sock.AF_INET, sock.SOCK_STREAM)
         tcp.setsockopt(sock.SOL_SOCKET, sock.SO_REUSEADDR, 1)
         tcp.bind((self.address, TCP_PORT))
         tcp.listen(10)
 
         while 1:
-            conn, addr = tcp.accept()
-            print('Received TCP connection', conn, addr)
+            try:
+                conn, addr = tcp.accept()
+                data = get_cpu_data()
+                data['ip'] = self.address
+                data = str.encode(json.dumps(data))
+
+                conn.sendall(data)
+                conn.close()
+            except sock.timeout:
+                ''
 
         tcp.close()
 
     def connect_peer(self, ip):
-        try:
-            if not self.peers.get(ip, None):
-                p = sock.socket(sock.AF_INET, sock.SOCK_STREAM)
-                p.connect((ip, TCP_PORT))
-                self.peers[ip] = p
-        except Exception as ex:
-            print('[ERROR] connect_peer:', ex)
-            self.delete(ip)
-            return False
+        if not self.peers.get(ip, None):
+            s = None
+            try:
+                s = sock.socket(sock.AF_INET, sock.SOCK_STREAM)
+                s.connect((ip, TCP_PORT))
+            except Exception as ex:
+                if s: s.close()
+                print('ERROR connect_peer:', ex)
+                return False
+
+            resp = s.recv(1024)
+            self.peers[ip] = resp
+            s.close()
 
         return True
 
-    def delete(self, addr):
+    def delete(self, ip):
         '''Remove peer (IP) from list of peers'''
         try:
-            if self.peers.get(addr[0], None):
-                self.peers.pop(addr[0])
+            if self.peers.get(ip, None):
+                self.peers.pop(ip)
             return True
         except:
             return False

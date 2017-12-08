@@ -1,0 +1,11 @@
+#!/bin/bash
+
+set -e
+
+clear
+docker run \
+	--rm \
+	-it \
+	-v $PWD:/usr/src/app \
+	"$@" \
+	distribuidos

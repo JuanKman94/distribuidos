@@ -2,19 +2,50 @@
 
 import sys
 import time
+import json
 import socket
 import automata
 import threading
 
-PORT = 3000
-
 def print_pals(auto):
     while True:
-        time.sleep(30)
-        print('Peers = [', end = '')
-        for k in auto.peers:
-            print(' \'{0}\' '.format(k), end = '')
+        time.sleep(automata.INTERVAL * 2)
+        l = list()
+        dead = list()
+        master = { 'ip': '', 'percent': 0.0 }
+
+        print('Peers = [')
+
+        for ip in auto.peers:
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.connect( (ip, automata.TCP_PORT) )
+
+                resp = s.recv(1024)
+                resp = json.loads(resp.decode())
+
+                if resp.get('mem', {}).get('percent', 0.0) > master['percent'] or master['ip'] == '':
+                    master['ip'] = resp['ip']
+                    master['percent'] = resp.get('mem').get('percent')
+
+                l.append(resp)
+                s.close()
+            except:
+                print('ERROR Couldn\'t reach', ip)
+                dead.append(ip)
+
+        for i in range(len(l)):
+            host = l[i]
+
+            if host['ip'] == master['ip']: print('* ', end = '')
+            else: print('  ', end = '' )
+
+            print('{ip}: {perc}'.format(ip = host['ip'], perc = 100.0 - host.get('mem').get('percent')))
+            #print(json.dumps(l[i], sort_keys = True, indent = 4))
+
         print(']')
+        for ip in dead:
+            auto.delete(ip)
 
 if __name__ != '__main__':
     sys.exit(1)
@@ -25,6 +56,8 @@ k = 'eth0' # just to default it
 for key in ifaces:
     if ifaces[key].get('broadcast', None): k = key
 iface = ifaces[k]
+
+socket.setdefaulttimeout(2)
 
 broadcaster = automata.automata(address = iface['addr'])
 broadcaster.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
